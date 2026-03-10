@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <style>
+        body {
+            max-width: 960px;
+            margin: auto;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>Organizer Dashboard</h1>
+    <p id="user-welcome">Welcome!</p>
+    <form action="/logout" method="post" style="display: inline-block; margin-top: 1rem;">
+        <button type="submit">Log Out</button>
+    </form>
+    
+    <hr>
+
+    <h2>Your Forms</h2>
+    <div id="forms-list">
+        <p>Loading your forms...</p>
+    </div>
+    <a href="new-form.html" role="button">Create New Form</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const welcomeElement = document.getElementById('user-welcome');
+            const formsListElement = document.getElementById('forms-list');
+
+            try {
+                const response = await fetch('/api/dashboard');
+                
+                if (!response.ok) {
+                    // If not authenticated, the server should redirect, but we handle it client-side too.
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                    }
+                    throw new Error('Failed to fetch dashboard data.');
+                }
+
+                const data = await response.json();
+                
+                welcomeElement.textContent = `Welcome, ${data.user.email}!`;
+
+                if (data.forms && data.forms.length > 0) {
+                    formsListElement.innerHTML = ''; // Clear the "Loading..." message
+                    const ul = document.createElement('ul');
+                    data.forms.forEach(form => {
+                        const li = document.createElement('li');
+                        li.style.marginBottom = '1rem';
+                        li.innerHTML = `
+                            <strong>${form.title}</strong><br>
+                            <a href="/forms/${form.slug}" target="_blank">View Public Form</a> | 
+                            <a href="/forms/${form.id}/submissions">View Submissions</a>
+                        `;
+                        ul.appendChild(li);
+                    });
+                    formsListElement.appendChild(ul);
+                } else {
+                    formsListElement.innerHTML = '<p>You have not created any forms yet. Click the button below to get started.</p>';
+                }
+
+            } catch (error) {
+                console.error('Dashboard error:', error);
+                formsListElement.innerHTML = '<p style="color: red;">Could not load your forms. Please ensure the server is running and you are logged in.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="form-title">Form</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <style>
+        body {
+            max-width: 720px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .hidden { display: none; }
+        #response-message { padding: 1rem; border-radius: 5px; margin-top: 1rem; }
+        .success { background-color: #28a745; color: white; }
+        .error { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1 id="form-header">Form</h1>
+    <p id="form-description"></p>
+    <hr>
+
+    <form id="dynamic-form">
+        <!-- Form fields will be populated here -->
+        <br>
+        <button type="submit" id="submit-button">Submit Registration</button>
+    </form>
+
+    <div id="response-message" class="hidden"></div>
+
+    <script>
+        // Get form slug from URL
+        const pathParts = window.location.pathname.split('/');
+        const formSlug = pathParts[pathParts.length - 1];
+        
+        // Fetch form data
+        fetch(`/api/forms/${formSlug}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('form-title').textContent = data.form.title;
+                document.getElementById('form-header').textContent = data.form.title;
+                document.getElementById('form-description').textContent = data.form.description;
+                
+                const form = document.getElementById('dynamic-form');
+                const formId = data.form.id;
+                
+                // Populate form fields
+                data.fields.forEach(field => {
+                    const label = document.createElement('label');
+                    label.setAttribute('for', field.name);
+                    label.textContent = field.label;
+                    
+                    let input;
+                    if (field.type === 'textarea') {
+                        input = document.createElement('textarea');
+                        input.setAttribute('id', field.name);
+                        input.setAttribute('name', field.name);
+                        if (field.required) input.setAttribute('required', '');
+                    } else {
+                        input = document.createElement('input');
+                        input.setAttribute('type', field.type);
+                        input.setAttribute('id', field.name);
+                        input.setAttribute('name', field.name);
+                        if (field.required) input.setAttribute('required', '');
+                    }
+                    
+                    form.insertBefore(input, form.lastElementChild);
+                    form.insertBefore(label, input);
+                });
+                
+                // Handle form submission
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+                    const submitButton = document.getElementById('submit-button');
+                    const responseMessage = document.getElementById('response-message');
+                    
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Submitting...';
+                    responseMessage.classList.add('hidden');
+
+                    const formData = new FormData(form);
+                    const data = Object.fromEntries(formData.entries());
+
+                    try {
+                        const response = await fetch(`/forms/submit/${formId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                        });
+
+                        const result = await response.json();
+                        if (!response.ok) throw new Error(result.message);
+
+                        responseMessage.textContent = result.message;
+                        responseMessage.className = 'success';
+                        form.reset();
+
+                    } catch (error) {
+                        responseMessage.textContent = error.message;
+                        responseMessage.className = 'error';
+                    } finally {
+                        responseMessage.classList.remove('hidden');
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Submit Registration';
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error loading form:', error);
+                document.body.innerHTML = '<h1>Form not found</h1><p>The requested form could not be found.</p>';
+            });
+    </script>
+</body>
+</html>

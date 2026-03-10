@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Form</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/dark.css">
+    <style>
+        body {
+            max-width: 960px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .field-item {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            border: 1px solid #555;
+            padding: 1rem;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Create a New Registration Form</h1>
+    <p><a href="/dashboard">Back to Dashboard</a></p>
+
+    <form id="create-form-form">
+        <label for="title">Form Title</label>
+        <input type="text" id="title" name="title" required>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description"></textarea>
+
+        <hr>
+
+        <h2>Form Fields</h2>
+        <div id="fields-container">
+            <!-- Fields will be added here -->
+        </div>
+
+        <button type="button" id="add-field-btn">Add Field</button>
+        
+        <hr>
+        
+        <button type="submit">Create Form</button>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fieldsContainer = document.getElementById('fields-container');
+            const addFieldBtn = document.getElementById('add-field-btn');
+            const createFormForm = document.getElementById('create-form-form');
+            let fieldIndex = 0;
+
+            // Add default Name and Email fields
+            createField('name', 'Full Name', 'text', true);
+            createField('email', 'Email Address', 'email', true);
+
+            addFieldBtn.addEventListener('click', () => {
+                createField('', '', 'text', false);
+            });
+
+            createFormForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const title = document.getElementById('title').value;
+                const description = document.getElementById('description').value;
+                const fieldItems = fieldsContainer.querySelectorAll('.field-item');
+                const fields = [];
+
+                let hasError = false;
+                const fieldNames = new Set();
+
+                for (const item of fieldItems) {
+                    const label = item.querySelector('input[name*="[label]"]').value.trim();
+                    const name = item.querySelector('input[name*="[name]"]').value.trim();
+                    const type = item.querySelector('select[name*="[type]"]').value;
+                    const required = item.querySelector('input[name*="[required]"]').checked;
+
+                    if (!label || !name) {
+                        alert('All fields must have both a label and a field name.');
+                        hasError = true;
+                        break;
+                    }
+                    
+                    if (fieldNames.has(name)) {
+                        alert(`Field name "${name}" is not unique. Please use unique names for each field.`);
+                        hasError = true;
+                        break;
+                    }
+                    fieldNames.add(name);
+
+                    fields.push({ label, name, type, required });
+                }
+
+                if (hasError) {
+                    return;
+                }
+
+                if (!title || fields.length === 0) {
+                    alert('Form title and at least one field are required.');
+                    return;
+                }
+                
+                const payload = {
+                    title,
+                    description,
+                    fields
+                };
+
+                try {
+                    const response = await fetch('/forms', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        window.location.href = '/dashboard';
+                    } else {
+                        const error = await response.text();
+                        alert('Error creating form: ' + error);
+                    }
+                } catch (error) {
+                    console.error('Form creation failed:', error);
+                    alert('Network error. Please try again.');
+                }
+            });
+
+            function createField(name, label, type, required) {
+                const fieldId = `field_${fieldIndex}`;
+                const div = document.createElement('div');
+                div.className = 'field-item';
+                div.innerHTML = `
+                    <div>
+                        <label for="${fieldId}_label">Label</label>
+                        <input type="text" id="${fieldId}_label" name="fields[${fieldIndex}][label]" value="${label}" required placeholder="e.g., College Name">
+                    </div>
+                    <div>
+                        <label for="${fieldId}_name">Field Name (no spaces)</label>
+                        <input type="text" id="${fieldId}_name" name="fields[${fieldIndex}][name]" value="${name}" required placeholder="e.g., college_name">
+                    </div>
+                    <div>
+                        <label for="${fieldId}_type">Type</label>
+                        <select id="${fieldId}_type" name="fields[${fieldIndex}][type]">
+                            <option value="text" ${type === 'text' ? 'selected' : ''}>Text</option>
+                            <option value="email" ${type === 'email' ? 'selected' : ''}>Email</option>
+                            <option value="number" ${type === 'number' ? 'selected' : ''}>Number</option>
+                            <option value="date" ${type === 'date' ? 'selected' : ''}>Date</option>
+                            <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Textarea</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="${fieldId}_required">Required?</label>
+                        <input type="checkbox" id="${fieldId}_required" name="fields[${fieldIndex}][required]" value="true" ${required ? 'checked' : ''}>
+                    </div>
+                    <button type="button" class="remove-btn">&times;</button>
+                `;
+                fieldsContainer.appendChild(div);
+                fieldIndex++;
+            }
+
+            fieldsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-btn')) {
+                    e.target.parentElement.remove();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
